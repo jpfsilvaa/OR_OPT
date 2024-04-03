@@ -2,81 +2,58 @@ import gurobipy as gp
 import random as rd
 import pandas as pd
 
-def buildFakePsi(O, S):
+def buildFakeAnesthetists(B):
+    A = {}
+    for j in B:
+        A[j] = rd.randint(8, 13)
+    return A
+
+def getParameters():
+    # Operating Rooms (real)
+    df_infra = pd.read_csv('instances/INST_1/infra_salas(psi).csv', sep=',')
+    O = df_infra.columns[1:].tolist()
+
+    # Blocks (one week -- the real planning is for a month)
+    df_disp = pd.read_csv('instances/INST_1/disp_times(lambda).csv', sep=',')
+    BWeekIds = df_disp['bloco'].tolist()
+    B = [f'{b}_{w}' for b in BWeekIds for w in range(1,31)]
+
+    # Specialties (real)
+    df_espec = pd.read_csv('instances/INST_1/especialidades.csv', sep=',')
+    S = df_espec['Especialidades'].tolist()
+
+    # Demand (artificial)
+    D = {s: df_espec.loc[df_espec['Especialidades'] == s, 'Demanda'].values[0] for s in S}
+
+    # Priorities (artificial)
+    phi = {s: df_espec.loc[df_espec['Especialidades'] == s, 'Prioridade'].values[0] for s in S}
+
+    # Past deficit (artificial)
+    zeta = {s: df_espec.loc[df_espec['Especialidades'] == s, 'Deficit passado'].values[0] for s in S}
+
+    # Room infrasctructure (real)
     psi = {}
     for i in O:
         psi[i] = {}
         for k in S:
-            if i == 'OR1' and (k == 'CARDIOLOGIA' or k == 'CIRURGIA CARDÍACA' or k == 'CIRURGIA VASCULAR'):
-                psi[i][k] = 1
-            elif i == 'OR11' and (k == 'CIRURGIA DE CABEÇA E PESCOÇO' or k == 'NEUROCIRURGIA'):
-                psi[i][k] = 1
-            else:
-                psi[i][k] = rd.choices([0, 1], [0.3, 0.7])[0]
-    return psi
-
-def buildFakeLambda(S, B):
-    lambda_ = {}
-    for k in S:
-        lambda_[k] = {}
-        for j in B:
-            lambda_[k][j] = rd.choices([0, 1], [0.2, 0.8])[0]
-    return lambda_
-
-def buildFakeAnesthetists(B):
-    A = {}
-    for j in B:
-        A[j] = rd.randint(10, 15)
-    return A
-
-def buildFakeTeams(B, S):
+            psi[i][k] = df_infra.loc[df_infra['Especialidade/sala'] == k, i].values[0]
+    
+    # Teams availability (real)
     H = {}
-    for j in B:
-        H[j] = {}
-        for k in S:
-            H[j][k] = rd.randint(1, 3)
-    return H
-
-def getParameters():
-    # Operating Rooms (real)
-    O = ['OR1', 'OR2', 'OR3', 'OR4', 'OR5', 'OR6', 'OR7', 'OR8', 'OR9', 'OR10', 'OR11', 'OR12', 'OR13']
-
-    # Blocks (one week -- the real planning is for a month)
-    B = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10'] 
-
-    # Specialties (real)
-    S = ['CARDIOLOGIA', 'CIRURGIA CARDÍACA', 'CIRURGIA DE CABEÇA E PESCOÇO', 'CIRURGIA DO TRAUMA',
-                        'CIRURGIA PEDIÁTRICA', 'CIRURGIA PLÁSTICA', 'CIRURGIA TORÁCICA', 'CIRURGIA VASCULAR',
-                         'GASTROCIRURGIA', 'GASTROCLINICA', 'GINECOLOGIA', 'NEUROCIRURGIA', 'OBSTETRÍCIA',
-                         'OFTALMOLOGIA', 'ORTOPEDIA', 'ORTOPEDIA TRAUMA', 'OTORRINOLARINGOLOGIA', 'PROCTOLOGIA', 'UROLOGIA']
-
-    # Demand (artificial)
-    D = {'CARDIOLOGIA': 7, 'CIRURGIA CARDÍACA': 5, 'CIRURGIA DE CABEÇA E PESCOÇO': 7, 'CIRURGIA DO TRAUMA': 7,
-                        'CIRURGIA PEDIÁTRICA': 3, 'CIRURGIA PLÁSTICA': 7, 'CIRURGIA TORÁCICA': 6, 'CIRURGIA VASCULAR': 5, 
-                        'GASTROCIRURGIA': 5, 'GASTROCLINICA': 6, 'GINECOLOGIA': 5,  'NEUROCIRURGIA': 8, 'OBSTETRÍCIA': 6,
-                        'OFTALMOLOGIA': 10, 'ORTOPEDIA': 10, 'ORTOPEDIA TRAUMA': 8, 'OTORRINOLARINGOLOGIA': 9, 'PROCTOLOGIA': 2, 'UROLOGIA': 4}
-
-    # # Revenue (artificial)
-    # P = {'CARDIOLOGIA': 3000, 'CIRURGIA CARDÍACA': 3000, 'CIRURGIA DE CABEÇA E PESCOÇO': 2000, 'CIRURGIA DO TRAUMA': 1200,
-    #                     'CIRURGIA PEDIÁTRICA': 1300, 'CIRURGIA PLÁSTICA': 2000, 'CIRURGIA TORÁCICA': 1700, 'CIRURGIA VASCULAR': 1600,
-    #                     'GASTROCIRURGIA': 1100, 'GASTROCLINICA': 1000, 'GINECOLOGIA': 800, 'NEUROCIRURGIA': 550, 'OBSTETRÍCIA': 1000,
-    #                     'OFTALMOLOGIA': 900, 'ORTOPEDIA': 1200, 'ORTOPEDIA TRAUMA': 1100, 'OTORRINOLARINGOLOGIA': 700, 'PROCTOLOGIA': 500, 'UROLOGIA': 900}
-
-    # # Cost (artificial)
-    # C = {k: P[k]*0.4 for k in P}
-
-    # For testing the maximization of blocks rather than profit:
+    for k in S:
+        H[k] = {}
+        for j in BWeekIds:
+            H[k][j] = df_disp.loc[df_disp['bloco'] == j, k].values[0]    
+    
+    A = buildFakeAnesthetists(B)
+    
+    # Testing the maximization of blocks rather than profit:
     P = {s: 1 for s in S}
     C = {s: 0 for s in S}
+    
+    return O, B, S, D, P, C, psi, zeta, A, H, phi
 
-    zeta = {s: rd.randint(1, 5) for s in S}
-    psi = buildFakePsi(O, S)
-    lambda_ = buildFakeLambda(S, B)
-    A = buildFakeAnesthetists(B)
-    H = buildFakeTeams(B, S)
-    return O, B, S, D, P, C, psi, lambda_, zeta, A, H
-
-def createModel(O, B, S, D, P, C, psi, lambda_, zeta, A, H):
+def createModel(O, B, S, D, P, C, psi, zeta, A, H, phi):
     m = gp.Model("HC_preliminar_model")
 
     x = m.addVars(O, B, S, vtype=gp.GRB.BINARY, name="x")
@@ -86,11 +63,12 @@ def createModel(O, B, S, D, P, C, psi, lambda_, zeta, A, H):
     m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in B) >= zeta[s] for s in S), name='SpecialtyDeficit')
     m.addConstrs((x.sum(o, b, '*') <= 1 for o in O for b in B), name='BlockSpecialty')
     m.addConstrs((x[o, b, s] == 0 for o in O for b in B for s in S if psi[o][s] == 0), name='Infrastructure')
-    m.addConstrs((x[o, b, s] == 0 for o in O for b in B for s in S if lambda_[s][b] == 0), name='Team_Availability')
     m.addConstrs((gp.quicksum(x.sum('*', b, s) for s in S) <= A[b] for b in B), name='Anest_Anesthetists')
     m.addConstrs((x.sum('*', b, s) <= H[b][s] for b in B for s in S), name='SpecialtyPerBlock')
 
-    m.setObjective(gp.quicksum((P[s] - C[s]) * x[o, b, s] for o in O for b in B for s in S) - gp.quicksum(P[s] * z[s] for s in S), gp.GRB.MAXIMIZE)
+    m.setObjective(gp.quicksum(phi[s] * (P[s] - C[s]) * x[o, b, s] for o in O for b in B for s in S) - gp.quicksum(P[s] * z[s] for s in S), gp.GRB.MAXIMIZE)
+    # TODO - NEED TO ADAPT THE B AND BWeekIds TO THE REAL DATA (FOR THE ANESTHETISTS ITS B, AND FOR THE TEAMS AVAILABILITY ITS BWeekIds)
+    # TODO - ADAPT THE NUMBER OF DAYS AS SOMETHING GOT FROM THE REAL DATA
 
     return x, z, m
 
@@ -135,8 +113,8 @@ def saveResults(m, x, z, O, B, S):
 
 def main():
     rd.seed(123)
-    O, B, S, D, P, C, psi, lambda_, zeta, A, H = getParameters()
-    vars, z, model = createModel(O, B, S, D, P, C, psi, lambda_, zeta, A, H)
+    O, B, S, D, P, C, psi, zeta, A, H, phi = getParameters()
+    vars, z, model = createModel(O, B, S, D, P, C, psi, zeta, A, H, phi)
     model.optimize()
 
     saveResults(model, vars, z, O, B, S)
