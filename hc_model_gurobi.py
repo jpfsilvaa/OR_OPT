@@ -16,7 +16,11 @@ def getParameters():
     # Blocks (one week -- the real planning is for a month)
     df_disp = pd.read_csv('instances/INST_1/disp_times(lambda).csv', sep=',')
     BWeekIds = df_disp['bloco'].tolist()
-    B = [f'{b}_{w}' for b in BWeekIds for w in range(1,31)]
+
+    B = []
+    for b in range(1, 23): # TODO - ADAPT THE NUMBER OF DAYS AS SOMETHING FROM THE FILES
+        weekDay = BWeekIds[(b-1) % 5]
+        B.append(f'{weekDay}_{b}')
 
     # Specialties (real)
     df_espec = pd.read_csv('instances/INST_1/especialidades.csv', sep=',')
@@ -47,7 +51,8 @@ def getParameters():
     
     A = buildFakeAnesthetists(B)
     
-    # Testing the maximization of blocks rather than profit:
+    # Testing the maximization of blocks rather than profit (for now):
+    # TODO - MAKE IT AS A PARAMETER FROM FILES
     P = {s: 1 for s in S}
     C = {s: 0 for s in S}
     
@@ -58,22 +63,21 @@ def createModel(O, B, S, D, P, C, psi, zeta, A, H, phi):
 
     x = m.addVars(O, B, S, vtype=gp.GRB.BINARY, name="x")
     z = m.addVars(S, vtype=gp.GRB.INTEGER, name="z")
+    print(psi)
 
     m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in B) + z[s] >= D[s] for s in S), name='SpecialtyDemand')
     m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in B) >= zeta[s] for s in S), name='SpecialtyDeficit')
     m.addConstrs((x.sum(o, b, '*') <= 1 for o in O for b in B), name='BlockSpecialty')
     m.addConstrs((x[o, b, s] == 0 for o in O for b in B for s in S if psi[o][s] == 0), name='Infrastructure')
-    m.addConstrs((gp.quicksum(x.sum('*', b, s) for s in S) <= A[b] for b in B), name='Anest_Anesthetists')
-    m.addConstrs((x.sum('*', b, s) <= H[b][s] for b in B for s in S), name='SpecialtyPerBlock')
+    m.addConstrs((gp.quicksum(x.sum('*', b, s) for s in S) <= A[b] for b in B), name='Anesthetists')
+    m.addConstrs((x.sum('*', b, s) <= H[s][b[:3]] for b in B for s in S), name='SpecialtyPerBlock')
 
     m.setObjective(gp.quicksum(phi[s] * (P[s] - C[s]) * x[o, b, s] for o in O for b in B for s in S) - gp.quicksum(P[s] * z[s] for s in S), gp.GRB.MAXIMIZE)
-    # TODO - NEED TO ADAPT THE B AND BWeekIds TO THE REAL DATA (FOR THE ANESTHETISTS ITS B, AND FOR THE TEAMS AVAILABILITY ITS BWeekIds)
-    # TODO - ADAPT THE NUMBER OF DAYS AS SOMETHING GOT FROM THE REAL DATA
 
     return x, z, m
 
 def saveResults(m, x, z, O, B, S):
-    m.write('hc.lp')
+    m.write('output/hc.lp')
     result = {}
     if m.SolCount > 1:
         for o in O:
@@ -86,7 +90,7 @@ def saveResults(m, x, z, O, B, S):
         for column in df.columns:
             df[column] = df[column].apply(lambda x: x[0] if len(x) > 0 else '')
 
-        df.to_csv('hc_output.csv')
+        df.to_csv('output/hc_output.csv')
 
         count_blocks = {}
         for o in O:
@@ -98,7 +102,7 @@ def saveResults(m, x, z, O, B, S):
         count_blocks['Empty blocks'] = len(B)*len(O) - sum(count_blocks.values())
         
         df_count = pd.DataFrame(count_blocks.items(), columns=['Specialty', 'Number of Blocks'])
-        df_count.to_csv('hc_output_count.csv')
+        df_count.to_csv('output/hc_output_count.csv')
 
         count_deficit = {}
         for s in S:
@@ -106,7 +110,7 @@ def saveResults(m, x, z, O, B, S):
             count_deficit[s] = z[s].x
         
         df_deficit = pd.DataFrame(count_deficit.items(), columns=['Specialty', 'Deficit'])
-        df_deficit.to_csv('hc_output_deficit.csv')       
+        df_deficit.to_csv('output/hc_output_deficit.csv')       
 
     else:
         print('No solution found')
