@@ -39,22 +39,24 @@ def getParameters():
     return operRooms, blockIds, specialties, demand, revenue, cost, infra, pastDeficit, anestAvailab, teamsAvailab, priorities, needAnest
 
 def createModel(O, B, S, D, P, C, psi, zeta, A, H, phi, gamma):
-    m = gp.Model("HC_preliminaryvari[avel de folga_model")
+    m = gp.Model("HC_preliminary_model")
 
     x = m.addVars(O, B, S, vtype=gp.GRB.BINARY, name="x")
+    # z = m.addVars(S, vtype=gp.GRB.INTEGER, name="z")
 
     m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in B) >= D[s] for s in S), name='SpecialtyDemand')
-    m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in B) >= zeta[s] for s in S), name='SpecialtyDeficit')
+    # m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in B) + z[s] >= D[s] for s in S), name='SpecialtyDemand')
     m.addConstrs((x.sum(o, b, '*') <= 1 for o in O for b in B), name='BlockSpecialty')
     m.addConstrs((x[o, b, s] == 0 for o in O for b in B for s in S if psi[o][s] == 0), name='Infrastructure')
     m.addConstrs((gp.quicksum(gamma[s] * x.sum('*', b, s) for s in S) <= A[b] for b in B), name='Anesthetists')
     m.addConstrs((x.sum('*', b, s) <= H[s][b[:3]] for b in B for s in S), name='SpecialtyPerBlock')
 
     m.setObjective(gp.quicksum(phi[s] * (P[s] - C[s]) * x[o, b, s] for o in O for b in B for s in S), gp.GRB.MAXIMIZE)
+    # m.setObjective(gp.quicksum(phi[s] * (P[s] - C[s]) * x[o, b, s] for o in O for b in B for s in S) - gp.quicksum(P[s] * z[s] for s in S), gp.GRB.MAXIMIZE)
 
     return x, m
 
-def saveResults(m, x, O, B, S):
+def saveResults(m, x, z, O, B, S):
     m.write('output/hc.lp')
     result = {}
     if m.SolCount >= 1:
@@ -81,6 +83,13 @@ def saveResults(m, x, O, B, S):
         
         df_count = pd.DataFrame(count_blocks.items(), columns=['Specialty', 'Number of Blocks'])
         df_count.to_csv('output/hc_output_count.csv') 
+
+        # count_deficit = {}
+        # for s in S:
+        #     count_deficit[s] = z[s].x
+
+        # df_deficit = pd.DataFrame(count_deficit.items(), columns=['Specialty', 'Deficit'])
+        # df_deficit.to_csv('output/hc_output_deficit.csv')   
 
     else:
         print('No solution found')
