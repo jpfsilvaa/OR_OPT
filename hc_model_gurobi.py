@@ -15,6 +15,7 @@ def getParameters():
     params.priority = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Prioridade'].values[0] for s in params.specialties}
     params.pastDeficit = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Deficit passado'].values[0] for s in params.specialties}
     params.needAnest = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Precisa anestesista'].values[0] for s in params.specialties}
+   
     infra = {}
     for i in params.operRooms:
         infra[i] = {}
@@ -24,6 +25,7 @@ def getParameters():
     
     df_disp_times = pd.read_csv('instances/INST_1/disp_times(lambda).csv', sep=',')
     blockWeekIds = df_disp_times['bloco_semana_id'].tolist()
+    
     teamsAvailab = {}
     for k in params.specialties:
         teamsAvailab[k] = {}
@@ -48,21 +50,21 @@ def createModel(params):
     m = gp.Model("HC_preliminary_model")
 
     x = m.addVars(params.operRooms, params.blockIds, params.specialties, vtype=gp.GRB.BINARY, name="x")
-    # z = m.addVars(params.specialties, vtype=gp.GRB.INTEGER, name="z")
+    z = m.addVars(params.specialties, vtype=gp.GRB.INTEGER, name="z")
 
-    m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in params.blockIds) >= params.demand[s] for s in params.specialties), name='SpecialtyDemand')
-    # m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in B) + z[s] >= D[s] for s in params.specialties), name='SpecialtyDemand')
+    # m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in params.blockIds) >= params.demand[s] for s in params.specialties), name='SpecialtyDemand')
+    m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in params.blockIds) + z[s] >= params.demand[s] for s in params.specialties), name='SpecialtyDemand')
     m.addConstrs((x.sum(o, b, '*') <= 1 for o in params.operRooms for b in params.blockIds), name='BlockSpecialty')
     m.addConstrs((x[o, b, s] == 0 for o in params.operRooms for b in params.blockIds for s in params.specialties if params.infra[o][s] == 0), name='Infrastructure')
     m.addConstrs((gp.quicksum(params.needAnest[s] * x.sum('*', b, s) for s in params.specialties) <= params.anestAvailab[b] for b in params.blockIds), name='Anesthetists')
     m.addConstrs((x.sum('*', b, s) <= params.teamsAvailab[s][b[:3]] for b in params.blockIds for s in params.specialties), name='SpecialtyPerBlock')
 
-    m.setObjective(gp.quicksum(params.priority[s] * (params.revenue[s] - params.cost[s]) * x[o, b, s] for o in params.operRooms for b in params.blockIds for s in params.specialties), gp.GRB.MAXIMIZE)
-    # m.setObjective(gp.quicksum(phi[s] * (P[s] - C[s]) * x[o, b, s] for o in O for b in B for s in params.specialties) - gp.quicksum(P[s] * z[s] for s in params.specialties), gp.GRB.MAXIMIZE)
+    # m.setObjective(gp.quicksum(params.priority[s] * (params.revenue[s] - params.cost[s]) * x[o, b, s] for o in params.operRooms for b in params.blockIds for s in params.specialties), gp.GRB.MAXIMIZE)
+    m.setObjective(gp.quicksum(params.priority[s] * (params.revenue[s] - params.cost[s]) * x[o, b, s] for o in params.operRooms for b in params.blockIds for s in params.specialties) - gp.quicksum(params.revenue[s]* z[s] for s in params.specialties), gp.GRB.MAXIMIZE)
 
-    return x, m
+    return x, z, m
 
-def saveResults(m, x, O, B, S):
+def saveResults(m, x, z, O, B, S):
     m.write('output/hc.lp')
     result = {}
     if m.SolCount >= 1:
@@ -90,12 +92,12 @@ def saveResults(m, x, O, B, S):
         df_count = pd.DataFrame(count_blocks.items(), columns=['Specialty', 'Number of Blocks'])
         df_count.to_csv('output/hc_output_count.csv') 
 
-        # count_deficit = {}
-        # for s in S:
-        #     count_deficit[s] = z[s].x
+        count_deficit = {}
+        for s in S:
+            count_deficit[s] = z[s].x
 
-        # df_deficit = pd.DataFrame(count_deficit.items(), columns=['Specialty', 'Deficit'])
-        # df_deficit.to_csv('output/hc_output_deficit.csv')   
+        df_deficit = pd.DataFrame(count_deficit.items(), columns=['Specialty', 'Deficit'])
+        df_deficit.to_csv('output/hc_output_deficit.csv')   
 
     else:
         print('No solution found')
@@ -104,10 +106,10 @@ def main():
     rd.seed(123)
     
     modelParams = getParameters()
-    vars, model = createModel(modelParams)
+    vars, z, model = createModel(modelParams)
     model.optimize()
 
-    saveResults(model, vars, modelParams.operRooms, modelParams.blockIds, modelParams.specialties)
+    saveResults(model, vars, z, modelParams.operRooms, modelParams.blockIds, modelParams.specialties)
 
 if __name__ == '__main__':
     main()
