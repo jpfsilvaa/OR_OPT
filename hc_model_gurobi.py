@@ -6,10 +6,10 @@ from classes.parameters import ModelParameters
 def getParameters():
     params = ModelParameters()
 
-    df_infra = pd.read_csv('instances/INST_1/infra_salas(psi).csv', sep=',')
+    df_infra = pd.read_csv('instances/INST_4/infra_salas(psi).csv', sep=',')
     params.operRooms = df_infra.columns[1:].tolist()
 
-    df_espec = pd.read_csv('instances/INST_1/especialidades.csv', sep=',')
+    df_espec = pd.read_csv('instances/INST_4/especialidades.csv', sep=',')
     params.specialties = df_espec['Sub-especialidades'].tolist()
     params.demand = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Demanda'].values[0] for s in params.specialties}
     params.priority = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Prioridade'].values[0] for s in params.specialties}
@@ -23,7 +23,7 @@ def getParameters():
             infra[i][k] = df_infra.loc[df_infra['Sub-especialidade/sala'] == k, i].values[0]
     params.infra = infra
     
-    df_disp_times = pd.read_csv('instances/INST_1/disp_times(lambda).csv', sep=',')
+    df_disp_times = pd.read_csv('instances/INST_4/disp_times(lambda).csv', sep=',')
     blockWeekIds = df_disp_times['bloco_semana_id'].tolist()
     
     teamsAvailab = {}
@@ -33,8 +33,8 @@ def getParameters():
             teamsAvailab[k][j] = df_disp_times.loc[df_disp_times['bloco_semana_id'] == j, k].values[0]
     params.teamsAvailab = teamsAvailab
     
-    df_disp_anest = pd.read_csv('instances/INST_1/disp_anestesista(A).csv', sep=',')
-    params.blockIds = df_disp_anest['bloco_id'].tolist()
+    df_disp_anest = pd.read_csv('instances/INST_4/disp_anestesista(A).csv', sep=',')
+    params.blockIds = df_disp_anest['bloco_id'].tolist()[:-1]
 
     anestAvailab = {}
     for i in range(len(params.blockIds)):
