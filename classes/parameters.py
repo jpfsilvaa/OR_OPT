@@ -16,6 +16,7 @@ class ModelParameters:
         self.teamsAvailab = teamsAvailab
         self.priority = priorities
         self.needAnest = needAnest
+        self.ubDemand = 0.2
 
     def getOperRooms(self):
         return self.operRooms

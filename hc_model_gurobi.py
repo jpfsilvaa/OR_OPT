@@ -54,6 +54,7 @@ def createModel(params):
 
     # m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in params.blockIds) >= params.demand[s] for s in params.specialties), name='SpecialtyDemand')
     m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in params.blockIds) + z[s] >= params.demand[s] for s in params.specialties), name='SpecialtyDemand')
+    m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in params.blockIds) <= (1 + params.ubDemand) * params.demand[s] for s in params.specialties), name='UpperBoundDemand')
     m.addConstrs((x.sum(o, b, '*') <= 1 for o in params.operRooms for b in params.blockIds), name='BlockSpecialty')
     m.addConstrs((x[o, b, s] == 0 for o in params.operRooms for b in params.blockIds for s in params.specialties if params.infra[o][s] == 0), name='Infrastructure')
     m.addConstrs((gp.quicksum(params.needAnest[s] * x.sum('*', b, s) for s in params.specialties) <= params.anestAvailab[b] for b in params.blockIds), name='Anesthetists')
