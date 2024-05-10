@@ -57,8 +57,8 @@ def createModel(params):
 
     m.addConstrs((gp.quicksum(x.sum('*', b, s) for b in params.blockIds) <= (1 + params.ubDemand) * params.demand[s] for s in params.specialties), name='UpperBoundDemand')
     m.addConstrs((x.sum(o, b, '*') <= 1 for o in params.operRooms for b in params.blockIds), name='BlockSpecialty')
-    m.addConstrs((x[o, b, s] == 0 for o in params.operRooms for b in params.blockIds for s in params.specialties if params.infra[o][s] == 0), name='Infrastructure')
-    m.addConstrs((x.sum(o, b, '*') == 0 for o in params.operRooms[-2:] for i,b in enumerate(params.blockIds) if i % 2 == 0), name='CCAWorkPeriod')
+    m.addConstrs((x.sum(o, '*', s) == 0 for o in params.operRooms for s in params.specialties if params.infra[o][s] == 0), name='Infrastructure')
+    m.addConstrs((x.sum(o, b, '*') == 0 for o in params.operRooms[-2:] for i,b in enumerate(params.blockIds) if i % 2 != 0), name='CCAWorkPeriod')
     m.addConstrs((gp.quicksum(params.needAnest[s] * x.sum('*', b, s) for s in params.specialties) <= params.anestAvailab[b] for b in params.blockIds), name='Anesthetists')
     m.addConstrs((x.sum('*', b, s) <= params.teamsAvailab[s][b[:3]] for b in params.blockIds for s in params.specialties), name='SpecialtyPerBlock')
 
@@ -113,8 +113,8 @@ def saveResults(m, x, z, params):
 def main():
     rd.seed(123)
     
-    modelType = 'M2'
-    instance = 'INST_4'
+    instance = 'INST_3'
+    modelType = 'M1'
     modelParams = getParameters(instance, modelType)
     alocVars, deficitVars, model = createModel(modelParams)
     model.optimize()
