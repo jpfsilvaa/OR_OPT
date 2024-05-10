@@ -3,7 +3,7 @@ class ModelParameters:
                  specialties = list(), demand = dict(), revenue = dict(), 
                  cost = dict(), infra = dict(), pastDeficit = dict(), 
                  anestAvailab = dict(), teamsAvailab = dict(), 
-                 priorities = dict(), needAnest = dict()):
+                 priorities = dict(), needAnest = dict(), modelType = '', instance = ''):
         self.operRooms = operRooms
         self.blockIds = blockIds
         self.specialties = specialties
@@ -17,6 +17,8 @@ class ModelParameters:
         self.priority = priorities
         self.needAnest = needAnest
         self.ubDemand = 0.2
+        self.modelType = modelType
+        self.instance = ''
 
     def getOperRooms(self):
         return self.operRooms
