@@ -1,0 +1,42 @@
+Sub-especialidades,Especialidade,Prioridade,Demanda,Deficit passado,Precisa anestesista,,Especialidades
+Anestesia Dor,Local,1,2,0,0,,C PED
+C PED,C PED,1,21,0,1,,C PLAST
+C TORAX,C TORAX,1,16,0,1,,C TORAX
+C TRAUMA,C TRAUMA,1,5,0,1,,C TRAUMA
+CAB PESC,CAB PESC,1,16,0,1,,CAB PESC
+CCARD,CCARD,1,46,0,1,,CCARD
+EDA ADULTO,EDA Adulto,1,2,0,1,,EDA Adulto
+EDA Infantil,EDA Infantil,1,11,0,1,,EDA Infantil
+EEF,EEF,1,1,0,1,,EEF
+EEF  Local,Local,1,2,0,0,,Gastrocirurgia
+GAST   GDP/VB,Gastrocirurgia,1,14,0,1,,Local
+GAST  OBES,Gastrocirurgia,1,14,0,1,,NEURO
+GAST EED,Gastrocirurgia,1,20,0,1,,Oftalmo
+GAST FIG,Gastrocirurgia,1,16,0,1,,ORL
+MARCAP,Local,1,1,0,1,,Ortopedia
+MARCAP Local,Local,1,7,0,0,,PROCTO
+NEURO,NEURO,1,40,0,1,,Urologia
+NEURO COLU,NEURO,1,12,0,1,,VASC
+Oftalmo,Oftalmo,1,28,0,1,,
+ORL,ORL,1,48,0,1,,
+ORT COLUNA,Ortopedia,1,4,0,1,,
+ORT INF,Ortopedia,1,5,0,1,,
+ORT JOELHO,Ortopedia,1,13,0,1,,
+ORT Mão,Ortopedia,1,8,0,1,,
+ORT OMBRO,Ortopedia,1,2,0,1,,
+ORT Pé,Ortopedia,1,5,0,1,,
+ORT Quadril,Ortopedia,1,4,0,1,,
+ORT TRAUMA,Ortopedia,1,35,0,1,,
+ORT Tumor,Ortopedia,1,17,0,1,,
+PLAST,C PLAST,1,34,0,1,,
+PROCTO,PROCTO,1,31,0,1,,
+TMO,NEURO,1,2,0,1,,
+URO Andro,Urologia,1,6,0,1,,
+URO Func,Urologia,1,7,0,1,,
+URO GINECO,Urologia,1,4,0,1,,
+URO Infantil,Urologia,1,4,0,1,,
+URO litiase,Urologia,1,8,0,1,,
+URO Onco,Urologia,1,14,0,1,,
+URO TX,Urologia,1,3,0,1,,
+VASC,VASC,1,26,0,1,,
+VASC LOCAL,Local,1,13,0,0,,
