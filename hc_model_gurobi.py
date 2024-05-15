@@ -2,6 +2,7 @@ import gurobipy as gp
 import random as rd
 import pandas as pd
 from classes.parameters import ModelParameters
+import sys
 
 def getParameters(instance, modelType):
     params = ModelParameters()
@@ -134,11 +135,9 @@ def saveResults(m, x, z, h, a, params):
     else:
         print('No solution found')
 
-def main():
-    rd.seed(123)
+def main(instance, modelType, seed):
+    rd.seed(int(seed))
     
-    instance = 'INST_3_1'
-    modelType = 'M1'
     modelParams = getParameters(instance, modelType)
     alocVars, deficitVars, teamVars, anesthesistsVar, model = createModel(modelParams)
     model.optimize()
@@ -146,4 +145,7 @@ def main():
     saveResults(model, alocVars, deficitVars, teamVars, anesthesistsVar, modelParams)
 
 if __name__ == '__main__':
-    main()
+    instance = sys.argv[1:][0]
+    modelType = sys.argv[1:][1]
+    seed = sys.argv[1:][2]
+    main(instance, modelType, seed)
