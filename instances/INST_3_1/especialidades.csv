@@ -8,9 +8,9 @@ CCARD,CCARD,1,46,0,1,,CCARD
 EDA ADULTO,EDA Adulto,1,2,0,1,,EDA Adulto
 EDA Infantil,EDA Infantil,1,11,0,1,,EDA Infantil
 EEF,EEF,1,1,0,1,,EEF
-EEF  Local,Local,1,2,0,0,,Gastrocirurgia
-GAST   GDP/VB,Gastrocirurgia,1,14,0,1,,Local
-GAST  OBES,Gastrocirurgia,1,14,0,1,,NEURO
+EEF Local,Local,1,2,0,0,,Gastrocirurgia
+GAST GDP/VB,Gastrocirurgia,1,14,0,1,,Local
+GAST OBES,Gastrocirurgia,1,14,0,1,,NEURO
 GAST EED,Gastrocirurgia,1,20,0,1,,Oftalmo
 GAST FIG,Gastrocirurgia,1,16,0,1,,ORL
 MARCAP,Local,1,1,0,1,,Ortopedia
