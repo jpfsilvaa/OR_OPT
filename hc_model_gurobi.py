@@ -63,7 +63,7 @@ def createModel(params):
     m.addConstrs((x.sum(o, b, '*') == 0 for o in params.operRooms[-2:] for i,b in enumerate(params.blockIds) if i % 2 != 0), name='CCAWorkPeriod')
     m.addConstrs((gp.quicksum(params.needAnest[s] * x.sum('*', b, s) for s in params.specialties) <= params.anestAvailab[b] for b in params.blockIds), name='Anesthetists')
     m.addConstrs((x.sum('*', b, s) <= params.teamsAvailab[s][b[:3]] for b in params.blockIds for s in params.specialties), name='SpecialtyPerBlock')
-    # m.addConstrs((gp.quicksum(params.needAnest[s] * x.sum('*', b, s) for s in params.specialties) <= a[b] for b in params.blockIds), name='Anesthetists')
+    # m.addConstrs((gp.quicksum(params.needAnest[s] * x.sum('*', b, s) for s in params.specialties) <= a[b] for b in params.blockIds), name='Anesthesists')
     # m.addConstrs((x.sum('*', b, s) <= h[b, s] for b in params.blockIds for s in params.specialties), name='SpecialtyPerBlock')
 
     if params.modelType == 'M1':
