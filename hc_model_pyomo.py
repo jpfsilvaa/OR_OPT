@@ -1,177 +1,184 @@
 import pyomo.environ as pyo
 import random as rd
 import pandas as pd
+from classes.parameters import ModelParameters
+import sys
 
-def buildFakePsi(O, S):
-    psi = {}
-    for i in O:
-        psi[i] = {}
-        for k in S:
-            if i == 'OR1' and (k == 'CARDIOLOGIA' or k == 'CIRURGIA CARDÍACA' or k == 'CIRURGIA VASCULAR'):
-                psi[i][k] = 1
-            elif i == 'OR11' and (k == 'CIRURGIA DE CABEÇA E PESCOÇO' or k == 'NEUROCIRURGIA'):
-                psi[i][k] = 1
-            else:
-                psi[i][k] = rd.choices([0, 1], [0.3, 0.7])[0]
-    return psi
+def getParameters(instance, modelType):
+    params = ModelParameters()
+    params.instance = instance
+    params.modelType = modelType
+    instancePath = f'instances/{instance}/'
 
-def buildFakeLambda(S, B):
-    lambda_ = {}
-    for k in S:
-        lambda_[k] = {}
-        for j in B:
-            lambda_[k][j] = rd.choices([0, 1], [0.2, 0.8])[0]
-    return lambda_
+    df_infra = pd.read_csv(f'{instancePath}infra_salas(psi).csv', sep=',')
+    params.operRooms = df_infra.columns[1:].tolist()
 
-def buildFakeAnesthetists(B):
-    A = {}
-    for j in B:
-        A[j] = rd.randint(10, 15)
-    return A
+    df_espec = pd.read_csv(f'{instancePath}especialidades.csv', sep=',')
+    params.specialties = df_espec['Sub-especialidades'].tolist()
+    params.demand = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Demanda'].values[0] for s in params.specialties}
+    params.priority = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Prioridade'].values[0] for s in params.specialties}
+    params.pastDeficit = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Deficit passado'].values[0] for s in params.specialties}
+    params.needAnest = {s: df_espec.loc[df_espec['Sub-especialidades'] == s, 'Precisa anestesista'].values[0] for s in params.specialties}
+   
+    infra = {}
+    for i in params.operRooms:
+        infra[i] = {}
+        for k in params.specialties:
+            infra[i][k] = df_infra.loc[df_infra['Sub-especialidade/sala'] == k, i].values[0]
+    params.infra = infra
+    
+    df_disp_times = pd.read_csv(f'{instancePath}disp_times(lambda).csv', sep=',')
+    blockWeekIds = df_disp_times['bloco_semana_id'].tolist()
+    
+    teamsAvailab = {}
+    for k in params.specialties:
+        teamsAvailab[k] = {}
+        for j in blockWeekIds:
+            teamsAvailab[k][j] = df_disp_times.loc[df_disp_times['bloco_semana_id'] == j, k].values[0]
+    params.teamsAvailab = teamsAvailab
+    
+    df_disp_anest = pd.read_csv(f'{instancePath}disp_anestesista(A).csv', sep=',')
+    params.blockIds = df_disp_anest['bloco_id'].tolist()[:-1]
 
-def getParameters():
-    O = ['OR1', 'OR2', 'OR3', 'OR4', 'OR5', 'OR6', 'OR7', 'OR8', 'OR9', 'OR10', 'OR11', 'OR12', 'OR13']
-    B = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10']
-    S = ['CARDIOLOGIA', 'CIRURGIA CARDÍACA', 'CIRURGIA DE CABEÇA E PESCOÇO', 'CIRURGIA DO TRAUMA',
-                        'CIRURGIA PEDIÁTRICA', 'CIRURGIA PLÁSTICA', 'CIRURGIA TORÁCICA', 'CIRURGIA VASCULAR', 
-                        'DERMATOLOGIA', 'GASTROCIRURGIA', 'GASTROCLINICA', 'GINECOLOGIA', 'HEMATOLOGIA', 'NEUROCIRURGIA']
+    anestAvailab = {}
+    for i in range(len(params.blockIds)):
+        anestAvailab[df_disp_anest.loc[i, 'bloco_id']] = df_disp_anest.loc[i, 'Anestesistas - total']
+    params.anestAvailab = anestAvailab
 
-    # Demand
-    D = {'CARDIOLOGIA': 10, 'CIRURGIA CARDÍACA': 6, 'CIRURGIA DE CABEÇA E PESCOÇO': 10, 'CIRURGIA DO TRAUMA': 10,
-                        'CIRURGIA PEDIÁTRICA': 3, 'CIRURGIA PLÁSTICA': 6, 'CIRURGIA TORÁCICA': 8, 'CIRURGIA VASCULAR': 5, 
-                        'DERMATOLOGIA': 3, 'GASTROCIRURGIA': 5, 'GASTROCLINICA': 5, 'GINECOLOGIA': 3, 'HEMATOLOGIA': 5, 'NEUROCIRURGIA': 10}
+    params.revenue = {s: 1 for s in params.specialties}
+    params.cost = {s: 0 for s in params.specialties}
+    
+    return params
 
-    # Revenue
-    P = {'CARDIOLOGIA': 3000, 'CIRURGIA CARDÍACA': 3000, 'CIRURGIA DE CABEÇA E PESCOÇO': 2000, 'CIRURGIA DO TRAUMA': 1200,
-                        'CIRURGIA PEDIÁTRICA': 1300, 'CIRURGIA PLÁSTICA': 2000, 'CIRURGIA TORÁCICA': 1700, 'CIRURGIA VASCULAR': 1600,
-                        'DERMATOLOGIA': 900, 'GASTROCIRURGIA': 1100, 'GASTROCLINICA': 1000, 'GINECOLOGIA': 800, 'HEMATOLOGIA': 950, 'NEUROCIRURGIA': 3000}
-
-    # Cost
-    C = {'OR1': {'CARDIOLOGIA': 800, 'CIRURGIA CARDÍACA': 750, 'CIRURGIA DE CABEÇA E PESCOÇO': 500, 'CIRURGIA DO TRAUMA': 420,
-                    'CIRURGIA PEDIÁTRICA': 330, 'CIRURGIA PLÁSTICA': 280, 'CIRURGIA TORÁCICA': 370, 'CIRURGIA VASCULAR': 460,
-                    'DERMATOLOGIA': 190, 'GASTROCIRURGIA': 210, 'GASTROCLINICA': 200, 'GINECOLOGIA': 180, 'HEMATOLOGIA': 195, 'NEUROCIRURGIA': 700},
-    'OR2': {'CARDIOLOGIA': 600, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR3': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR4': {'CARgit iDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR5': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR6': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160, 
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR7': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120, 
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR8': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120, 
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR9': {'CARDIOLOGIA': 700, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR10': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120, 
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR11': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR12': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120,
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 550},
-    'OR13': {'CARDIOLOGIA': 500, 'CIRURGIA CARDÍACA': 550, 'CIRURGIA DE CABEÇA E PESCOÇO': 200, 'CIRURGIA DO TRAUMA': 120, 
-                    'CIRURGIA PEDIÁTRICA': 130, 'CIRURGIA PLÁSTICA': 180, 'CIRURGIA TORÁCICA': 170, 'CIRURGIA VASCULAR': 160,
-                    'DERMATOLOGIA': 90, 'GASTROCIRURGIA': 110, 'GASTROCLINICA': 100, 'GINECOLOGIA': 80, 'HEMATOLOGIA': 95, 'NEUROCIRURGIA': 400}}
-
-    psi = buildFakePsi(O, S)
-    lambda_ = buildFakeLambda(S, B)
-    A = buildFakeAnesthetists(B)
-    return O, B, S, D, P, C, psi, lambda_, A
-
-def createModel(O, B, S, D, P, C, psi, lambda_, A):
+def createModel(params):
     m = pyo.ConcreteModel()
 
+    O = params.operRooms
+    B = params.blockIds
+    S = params.specialties
+    D = params.demand
+
     m.x = pyo.Var(O, B, S, domain=pyo.Binary)
+    m.z = pyo.Var(S, domain=pyo.NonNegativeIntegers)
+    m.h = pyo.Var(B, S, domain=pyo.NonNegativeIntegers)
+    m.a = pyo.Var(B, domain=pyo.NonNegativeIntegers)
 
-    m.obj = pyo.Objective(expr=sum(sum(sum(P[k] * m.x[i, j, k] for k in S) for j in B) for i in O), sense=pyo.maximize)
-
-    # Each specialty needs to be allocated to, at least, D_k blocks
-    m.SpecialtyDemand = pyo.ConstraintList()
+    m.UpperBoundDemand = pyo.ConstraintList()
     for k in S:
-        m.SpecialtyDemand.add(sum(m.x[i, j, k] for i in O for j in B) >= D[k])
-
-    # Each block of each room needs to be allocated to, at most, one specialty
+        m.UpperBoundDemand.add(sum(m.x[i, j, k] for i in O for j in B) <= (1 + params.ubDemand) * D[k])
+    
     m.BlockSpecialty = pyo.ConstraintList()
     for i in O:
         for j in B:
             m.BlockSpecialty.add(sum(m.x[i, j, k] for k in S) <= 1)
 
-    # fixing variables according to psi (if psi[i][k] == 0, then x[i][j][k] == 0)
-    m.Infrastructure = pyo.ConstraintList()
+    m.Infrasctructure = pyo.ConstraintList()
     for i in O:
         for k in S:
-            if psi[i][k] == 0:
-                for j in B:
-                    m.Infrastructure.add(m.x[i, j, k] == 0)
-
-    # fixing variables according to lambda (if lambda[k][j] == 0, then x[i][j][k] == 0)
-    m.Team_Availability = pyo.ConstraintList()
-    for k in S:
-        for j in B:
-            if lambda_[k][j] == 0:
-                for i in O:
-                    m.Team_Availability.add(m.x[i, j, k] == 0)
-
-    # For each block j, the number of anesthetists available is enough to cover the number of blocks allocated to each specialty
+            if params.infra[i][k] == 0:
+                m.Infrasctructure.add(sum(m.x[i, j, k] for j in B) == 0)
+    
+    m.CCAWorkPeriod = pyo.ConstraintList()
+    for o in O[-2:]:
+        for i,b in enumerate(params.blockIds):
+            if i % 2 != 0:
+                m.CCAWorkPeriod.add(sum(m.x[o, j, k] for k in S) == 0)
+    
     m.Anesthetists = pyo.ConstraintList()
-    for j in B:
-        m.Anesthetists.add(sum(m.x[i, j, k] for i in O for k in S) <= A[j])
+    for b in B:
+        sum(params.needAnest[s] * m.x[i, b, s] for i in O for s in S) <= params.anestAvailab[b]
 
-    # Objective function, where we want to maximize the profit by multiplying the variable by the REvenue P_k subtracted by the cost C_ik
-    return m, m.x
+    m.SpecialtyPerBlock = pyo.ConstraintList()
+    for b in B:
+        for s in S:
+            m.SpecialtyPerBlock.add(sum(m.x[i, b, s] for i in O) <= params.teamsAvailab[s][b[:3]])
 
-def saveResults(m, x, O, B, S):
-    m.write('hc.lp')
+    expr=sum(sum(sum(params.priority[k] * (params.revenue[k] - params.cost[k]) * m.x[i, j, k] for k in S) for j in B) for i in O)
+    if params.modelType == 'M1':
+        m.SpecialtyDemand = pyo.ConstraintList()
+        for s in S:
+            m.SpecialtyDemand.add(sum(m.x[i, j, s] for i in O for j in B) >= D[s])
+        m.obj = pyo.Objective(rule=expr, sense=pyo.maximize)
+    else:
+        m.SpecialtyDemand = pyo.ConstraintList()
+        for s in S:
+            m.SpecialtyDemand.add(sum(m.x[i, j, s] for i in O for j in B) + m.z[s] >= D[s])
+        expr = expr - sum(params.revenue[s]* m.z[s] for s in S)
+        m.obj = pyo.Objective(rule=expr, sense=pyo.maximize)
 
-    # put the result from pyomo in a dataframe
-    df = pd.DataFrame(columns=['Room', 'Block', 'Specialty'])
-    for i in O:
-        for j in B:
-            for k in S:
-                if x[i, j, k].value > 0:
-                    df = df.append({'Room': i, 'Block': j, 'Specialty': k}, ignore_index=True)
+    return m, m.x, m.z, m.h, m.a
+
+def saveResults(m, x, z, h, a, params):
+    outputPath = f'output/{params.instance}_{params.modelType}'
+    m.write(f'{outputPath}/hc.lp', io_options={'symbolic_solver_labels': True})
+    result = {}
+
+    # saving schedule result
+    for o in params.operRooms:
+        result[o] = {}
+        for b in params.blockIds:
+            result[o][b] = [s for s in params.specialties if m.x[o, b, s].value > 0]
+
+    df = pd.DataFrame(result)
 
     for column in df.columns:
         df[column] = df[column].apply(lambda x: x[0] if len(x) > 0 else '')
 
-    print(df)
+    df.to_csv(f'{outputPath}/hc_output.csv')
 
-    df.to_csv('hc_output.csv')
+    # saving count of blocks per specialty
+    count_blocks = {}
+    for o in params.operRooms:
+        for b in params.blockIds:
+            for s in params.specialties:
+                if m.x[o, b, s].value > 0:
+                    count_blocks[s] = count_blocks.get(s, 0) + 1
+    
+    count_blocks['Empty blocks'] = len(params.blockIds)*len(params.operRooms) - sum(count_blocks.values())
+    
+    df_count = pd.DataFrame(count_blocks.items(), columns=['Specialty', 'Number of Blocks'])
+    df_count.to_csv(f'{outputPath}/hc_output_count.csv') 
 
-    count = {}
-    for i in O:
-        for j in B:
-            for k in S:
-                if x[i, j, k].x > 0:
-                    count[k] = count.get(k, 0) + 1
+    # # saving deficit per specialty
+    # count_deficit = {}
+    # for s in params.specialties:
+    #     count_deficit[s] = m.z[s].value
 
-    df_count = pd.DataFrame(count.items(), columns=['Specialty', 'Number of Blocks'])
-    df_count.to_csv('hc_output_count.csv')
-    print(df_count)
+    # df_deficit = pd.DataFrame(count_deficit.items(), columns=['Specialty', 'Deficit'])
+    # df_deficit.to_csv(f'{outputPath}/hc_output_deficit.csv')   
 
-def main():
-    rd.seed(123)
-    O, B, S, D, P, C, psi, lambda_, A = getParameters()
-    vars, model = createModel(O, B, S, D, P, C, psi, lambda_, A)
-    # optimize pyomo model
+    # # saving teams availability per block
+    # teams = {}
+    # for b in params.blockIds:
+    #     teams[b] = {}
+    #     for s in params.specialties:
+    #         teams[b][s] = int(m.h[b, s].value)
+    # df_teams = pd.DataFrame(teams)
+    # df_teams.transpose().to_csv(f'{outputPath}/hc_output_teams.csv')
+
+    # # saving anesthetists availability per block
+    # anest = {}
+    # for b in params.blockIds:
+    #     anest[b] = int(m.a[b].value)
+    # df_anest = pd.DataFrame(anest.items(), columns=['Block', 'Anesthetists'])
+    # df_anest.to_csv(f'{outputPath}/hc_output_anest.csv')
+
+def main(instance, modelType, seed):
+    rd.seed(int(seed))
+    
+    modelParams = getParameters(instance, modelType)
+    model, alocVars, deficitVars, teamVars, anesthesistsVar = createModel(modelParams)
     solver = pyo.SolverFactory('gurobi')
-    solver.solve(model)
+    results = solver.solve(model)
+    model.display()
 
-    saveResults(model, vars, O, B, S)
+    if (results.solver.status == pyo.SolverStatus.ok) and (results.solver.termination_condition == pyo.TerminationCondition.optimal):
+        saveResults(model, alocVars, deficitVars, teamVars, anesthesistsVar, modelParams)
+    else:
+        print('No solution found')
 
 if __name__ == '__main__':
-    main()
+    instance = sys.argv[1:][0]
+    modelType = sys.argv[1:][1]
+    seed = sys.argv[1:][2]
+    main(instance, modelType, seed)
