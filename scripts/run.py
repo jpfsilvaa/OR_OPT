@@ -11,7 +11,7 @@ if __name__ == '__main__':
     pathToModel = os.path.join(home, 'github', 'OR_OPT', 'models','hc_model_gurobi.py')
     
     scriptCalls = [
-        [pathToModel, 'instances/INST_1/']
+        [pathToModel, 'instances/INST_3_1/']
     ]
 
     #todo: FINISH THIS
